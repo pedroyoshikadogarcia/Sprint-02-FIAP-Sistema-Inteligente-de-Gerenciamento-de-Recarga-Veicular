@@ -17,11 +17,11 @@ Sistema Inteligente de Gerenciamento de Recarga para Veículos Elétricos desenv
 ```
 chargegrid-intelligence/
 ├── src/
-│   └── main.c              <-- Código em C limpo que acabamos de gerar
+│   └── main.c
 ├── docs/
-│   ├── documento_tecnico.md <-- Relatório explicativo das regras de negócio
-│   └── modbus_mapping.pdf   <-- O mapa da GoodWe que você usou de referência
-└── README.md               <-- Cartão de visitas do projeto (abaixo)
+│   ├── documento_tecnico.md 
+│   └── modbus_mapping.pdf
+└── README.md
 ```
 
 ---
