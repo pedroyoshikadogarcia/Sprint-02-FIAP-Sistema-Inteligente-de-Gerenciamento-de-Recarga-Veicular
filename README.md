@@ -32,5 +32,4 @@ Certifique-se de ter um compilador GCC instalado em sua máquina.
 
 ### Clonando o repositório:
 ```bash
-git clone [https://github.com/SEU_USUARIO/chargegrid-intelligence.git](https://github.com/SEU_USUARIO/chargegrid-intelligence.git)
-cd chargegrid-intelligence
+git clone [https://github.com/pedroyoshikadogarcia/Sprint-02-FIAP-Sistema-Inteligente-de-Gerenciamento-de-Recarga-Veicular.git)
