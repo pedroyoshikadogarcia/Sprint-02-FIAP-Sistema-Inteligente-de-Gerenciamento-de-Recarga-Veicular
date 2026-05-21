@@ -35,3 +35,33 @@ void atualizarSistemaeGerenciarPotencia();
 void aplicarTarifacaoDinamica(SessaoCarregamento *s);
 void simularComunicacaoModbus(SessaoCarregamento s);
 void gerarRelatorio();
+
+int main() {
+    inicializarSistema();
+    int opcao;
+
+    do {
+        exibirMenu();
+        printf("\nEscolha uma opcao: ");
+        if (scanf("%d", &opcao) != 1) {
+            printf("Opcao invalida!\n");
+            while (getchar() != '\n'); 
+            continue;
+        }
+
+        switch (opcao) {
+            case 1: IniciarNovaSessao(); break;
+            case 2: atualizarSistemaeGerenciarPotencia(); break;
+            case 3: gerarRelatorio(); break;
+            case 4: 
+                horaSimulada = (horaSimulada + 1) % 24;
+                printf("[INFO] Hora avancada para: %02dh:00\n", horaSimulada);
+                atualizarSistemaeGerenciarPotencia();
+                break;
+            case 0: printf("Encerrando ChargeGrid Intelligence...\n"); break;
+            default: printf("Opcao invalida!\n");
+        }
+    } while (opcao != 0);
+
+    return 0;
+}
