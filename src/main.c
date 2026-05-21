@@ -229,3 +229,12 @@ void gerarRelatorio() {
             energiaTotalDispensada += postos[i].energiaConsumida;
         }
     }
+    printf("------------------------------------------------------\n");
+    printf(" Energia Total Injetada nos VEs: %.2f kWh\n", energiaTotalDispensada);
+    printf(" Faturamento Estimado da Rodada: R$ %.2f\n", faturamentoTotal);
+    printf("------------------------------------------------------\n");
+    
+    printf("\nPressione Enter para voltar ao menu...");
+    while (getchar() != '\n'); 
+    getchar(); 
+}
