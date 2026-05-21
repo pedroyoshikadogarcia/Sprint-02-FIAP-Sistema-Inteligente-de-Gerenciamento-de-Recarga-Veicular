@@ -1,4 +1,4 @@
-# 📑 Documento Técnico — Sistema Inteligente de Gerenciamento de Recarga (Sprint 2)
+# Documento Técnico — Sistema Inteligente de Gerenciamento de Recarga (Sprint 2)
 
 ## 1. Visão Geral do Sistema
 O **ChargeGrid Intelligence** é uma solução de backend em nível de firmware simulado desenvolvida em Linguagem C. O sistema foi projetado para gerenciar o balanceamento de carga local (*Smart Charging*) em cenários onde múltiplos Veículos Elétricos (VEs) são conectados simultaneamente a uma infraestrutura com restrição de potência (limite fixado em 22.0 kW para fins de teste, simulando um padrão residencial-comercial comum).
