@@ -4,7 +4,7 @@ Sistema Inteligente de Gerenciamento de Recarga para Veículos Elétricos desenv
 
 ---
 
-**Funcionalidades Implementadas** (Critérios de Avaliação)
+**Funcionalidades Implementadas**
 
 1. **Gerenciamento de Múltiplas Sessões:** Suporte para até 5 postos de carregamento simultâneos controlados via estruturas (`structs`) dinâmicas em memória.
 2. **Controle de Demanda Inteligente (Smart Charging):** Algoritmo de *Peak Shaving* que monitora a carga total do grid (limite de 22.0 kW) e redistribui a potência proporcionalmente em caso de sobrecarga.
@@ -32,4 +32,4 @@ Certifique-se de ter um compilador GCC instalado em sua máquina.
 
 ### Clonando o repositório:
 ```bash
-git clone [https://github.com/pedroyoshikadogarcia/Sprint-02-FIAP-Sistema-Inteligente-de-Gerenciamento-de-Recarga-Veicular.git)
+git clone https://github.com/pedroyoshikadogarcia/Sprint-02-FIAP-Sistema-Inteligente-de-Gerenciamento-de-Recarga-Veicular.git
