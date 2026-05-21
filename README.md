@@ -19,8 +19,8 @@ chargegrid-intelligence/
 ├── src/
 │   └── main.c
 ├── docs/
-│   ├── documento_tecnico.md 
-│   └── modbus_mapping.pdf
+│   └── documento_tecnico.md 
+│   
 └── README.md
 ```
 
