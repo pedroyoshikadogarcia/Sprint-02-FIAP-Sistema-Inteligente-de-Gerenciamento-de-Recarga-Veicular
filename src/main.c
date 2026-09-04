@@ -1,240 +1,266 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
-#define MAX_SESSOES 5
-#define POTENCIA_MAXIMA_GRID 22.0
+#define MAX_SESSOES 100
 #define TARIFA_BASE 0.85
 
 typedef enum {
     DISPONIVEL,
     CARREGANDO,
-    AGUARDANDO_GRID, 
     CONCLUIDO
 } StatusSessao;
 
 typedef struct {
     int id;
     char modeloVeiculo[30];
-    float potenciaSolicitada; 
-    float potenciaAtual;      
-    float energiaConsumida;   
-    float custoAtual;         
+    float energiaConsumida; // kWh
+    float tempoRecarga;     // Minutos
+    float custoTotal;       // R$
     StatusSessao status;
-} SessaoCarregamento;
+} Sessao;
 
-SessaoCarregamento postos[MAX_SESSOES];
-int horaSimulada = 18; 
-
-void inicializarSistema();
 void exibirMenu();
-void IniciarNovaSessao();
-void monitorarSessao();
-void atualizarSistemaeGerenciarPotencia();
-void aplicarTarifacaoDinamica(SessaoCarregamento *s);
-void simularComunicacaoModbus(SessaoCarregamento s);
-void gerarRelatorio();
+void cadastrarSessao(Sessao sessoes[], int *total);
+void listarSessoes(const Sessao sessoes[], int total);
+void buscarSessao(Sessao sessoes[], int total);
+int buscaLinearPorID(const Sessao sessoes[], int total, int idBusca);
+int buscaBinariaPorID(Sessao sessoes[], int total, int idBusca);
+void ordenarSessoes(Sessao sessoes[], int total);
+void insertionSort(Sessao sessoes[], int total, int criterio);
+void mostrarEstatisticas(const Sessao sessoes[], int total);
+const char* obterStatus(StatusSessao status);
+void limparBuffer();
 
 int main() {
-    inicializarSistema();
+    Sessao sessoes[MAX_SESSOES];
+    int totalSessoes = 0;
     int opcao;
 
     do {
         exibirMenu();
-        printf("\nEscolha uma opcao: ");
+        printf("Escolha uma opcao: ");
         if (scanf("%d", &opcao) != 1) {
-            printf("Opcao invalida!\n");
-            while (getchar() != '\n'); 
+            printf("\n[ERRO] Entrada invalida! Digite apenas numeros.\n");
+            limparBuffer();
             continue;
         }
 
         switch (opcao) {
-            case 1: IniciarNovaSessao(); break;
-            case 2: atualizarSistemaeGerenciarPotencia(); break;
-            case 3: gerarRelatorio(); break;
-            case 4: 
-                horaSimulada = (horaSimulada + 1) % 24;
-                printf("[INFO] Hora avancada para: %02dh:00\n", horaSimulada);
-                atualizarSistemaeGerenciarPotencia();
-                break;
-            case 0: printf("Encerrando ChargeGrid Intelligence...\n"); break;
-            default: printf("Opcao invalida!\n");
+            case 1: cadastrarSessao(sessoes, &totalSessoes); break;
+            case 2: listarSessoes(sessoes, totalSessoes); break;
+            case 3: buscarSessao(sessoes, totalSessoes); break;
+            case 4: ordenarSessoes(sessoes, totalSessoes); break;
+            case 5: mostrarEstatisticas(sessoes, totalSessoes); break;
+            case 6: printf("\nEncerrando o ChargeGrid Management System...\n"); break;
+            default: printf("\n[ERRO] Opcao invalida!\n");
         }
-    } while (opcao != 0);
+    } while (opcao != 6);
 
     return 0;
 }
 
-void inicializarSistema() {
-    for (int i = 0; i < MAX_SESSOES; i++) {
-        postos[i].id = i + 1;
-        postos[i].status = DISPONIVEL;
-        postos[i].energiaConsumida = 0.0;
-        postos[i].custoAtual = 0.0;
-        postos[i].potenciaAtual = 0.0;
+void limparBuffer() {
+    while (getchar() != '\n');
+}
+
+const char* obterStatus(StatusSessao status) {
+    switch (status) {
+        case DISPONIVEL: return "DISPONIVEL";
+        case CARREGANDO: return "CARREGANDO";
+        case CONCLUIDO:  return "CONCLUIDO";
+        default:         return "DESCONHECIDO";
     }
 }
 
 void exibirMenu() {
-    printf("\n----------------------------------------------------\n");
-    printf("   CHARGEGRID INTELLIGENCE - SPRINT 2 (FIAP 2026)     \n");
-    printf("------------------------------------------------------\n");
-    printf(" Hora Atual do Sistema: %02dh:00 | Limite Grid: %.1f kW\n", horaSimulada, POTENCIA_MAXIMA_GRID);
-    printf("------------------------------------------------------\n");
-    for (int i = 0; i < MAX_SESSOES; i++) {
-        char statusStr[20];
-        switch (postos[i].status) {
-            case DISPONIVEL: strcpy(statusStr, "DISPONIVEL"); break;
-            case CARREGANDO: strcpy(statusStr, "CARREGANDO"); break;
-            case AGUARDANDO_GRID: strcpy(statusStr, "AGUARDANDO GRID"); break;
-            case CONCLUIDO: strcpy(statusStr, "CONCLUIDO"); break;
-        }
-        printf(" Posto %d [%s] ", postos[i].id, statusStr);
-        if (postos[i].status == CARREGANDO || postos[i].status == AGUARDANDO_GRID) {
-            printf("- %s (Alocado: %.1f/%.1f kW)", postos[i].modeloVeiculo, postos[i].potenciaAtual, postos[i].potenciaSolicitada);
-        }
-        printf("\n");
-    }
-    printf("------------------------------------------------------\n");
-    printf("1. Conectar Veiculo (Nova Sessao)\n");
-    printf("2. Simular Passo de Tempo (Simula recarga e envia MODBUS)\n");
-    printf("3. Gerar Relatorio de Auditoria\n");
-    printf("4. Avancar Hora (+1h - Altera Tarifacao)\n");
-    printf("0. Sair\n");
+    printf("\n=====================================\n");
+    printf("   CHARGEGRID - ESTACAO DE RECARGA   \n");
+    printf("=====================================\n");
+    printf("1 - Nova sessao de recarga\n");
+    printf("2 - Listar sessoes\n");
+    printf("3 - Buscar sessao\n");
+    printf("4 - Ordenar sessoes\n");
+    printf("5 - Estatisticas\n");
+    printf("6 - Encerrar\n");
+    printf("=====================================\n");
 }
 
-void IniciarNovaSessao() {
-    int idx = -1;
-    for (int i = 0; i < MAX_SESSOES; i++) {
-        if (postos[i].status == DISPONIVEL) {
-            idx = i;
-            break;
-        }
-    }
-
-    if (idx == -1) {
-        printf("\n[ALERTA] Todos os postos estao ocupados no momento!\n");
+void cadastrarSessao(Sessao sessoes[], int *total) {
+    if (*total >= MAX_SESSOES) {
+        printf("\n[ERRO] Limite maximo de sessoes atingido (%d)!\n", MAX_SESSOES);
         return;
     }
 
-    printf("\n--- Nova Sessao de Recarga (Posto %d) ---\n", postos[idx].id);
-    printf("Modelo do Veiculo (ex: Compass XE, BYD): ");
-    scanf(" %[^\n]", postos[idx].modeloVeiculo);
-    
-    printf("Potencia Maxima do Carregador do Carro (kW) [Ex: 7.4 ou 22.0]: ");
-    scanf("%f", &postos[idx].potenciaSolicitada);
+    Sessao nova;
+    nova.id = *total + 1;
 
-    postos[idx].status = CARREGANDO;
-    postos[idx].energiaConsumida = 0.0;
-    postos[idx].custoAtual = 0.0;
+    printf("\n--- Nova Sessao de Recarga (ID: %d) ---\n", nova.id);
+    printf("Modelo do Veiculo: ");
+    limparBuffer();
+    scanf(" %[^\n]", nova.modeloVeiculo);
 
-    printf("\n[SUCESSO] Veiculo %s conectado com sucesso.\n", postos[idx].modeloVeiculo);
-    
-    atualizarSistemaeGerenciarPotencia();
-}
-
-void atualizarSistemaeGerenciarPotencia() {
-    int veiculosAtivos = 0;
-    float demandaTotalSolicitada = 0.0;
-
-    for (int i = 0; i < MAX_SESSOES; i++) {
-        if (postos[i].status == CARREGANDO || postos[i].status == AGUARDANDO_GRID) {
-            veiculosAtivos++;
-            demandaTotalSolicitada += postos[i].potenciaSolicitada;
-        }
+    printf("Energia Consumida (kWh): ");
+    while (scanf("%f", &nova.energiaConsumida) != 1 || nova.energiaConsumida <= 0) {
+        printf("[ERRO] Valor invalido! Digite a energia consumida em kWh (numero positivo): ");
+        limparBuffer();
     }
 
-    printf("\n[SMART CHARGING] Analisando Grid. Ativos: %d | Solicitado: %.2f kW / Max: %.2f kW\n", 
-            veiculosAtivos, demandaTotalSolicitada, POTENCIA_MAXIMA_GRID);
+    printf("Tempo de Recarga (minutos): ");
+    while (scanf("%f", &nova.tempoRecarga) != 1 || nova.tempoRecarga <= 0) {
+        printf("[ERRO] Valor invalido! Digite o tempo em minutos (numero positivo): ");
+        limparBuffer();
+    }
 
-    if (veiculosAtivos == 0) return;
+    nova.custoTotal = nova.energiaConsumida * TARIFA_BASE;
+    nova.status = CONCLUIDO;
 
-    if (demandaTotalSolicitada > POTENCIA_MAXIMA_GRID) {
-        float potenciaPorPosto = POTENCIA_MAXIMA_GRID / veiculosAtivos;
-        printf("[ALERTA] Sobrecarga detectada! Aplicando Peak Shaving. Limitando postos a %.2f kW.\n", potenciaPorPosto);
-        
-        for (int i = 0; i < MAX_SESSOES; i++) {
-            if (postos[i].status == CARREGANDO || postos[i].status == AGUARDANDO_GRID) {
-                postos[i].status = CARREGANDO;
-                postos[i].potenciaAtual = (postos[i].potenciaSolicitada < potenciaPorPosto) ? postos[i].potenciaSolicitada : potenciaPorPosto;
-            }
+    sessoes[*total] = nova;
+    (*total)++;
+
+    printf("\n[SUCESSO] Sessao ID %d cadastrada com sucesso!\n", nova.id);
+}
+
+void listarSessoes(const Sessao sessoes[], int total) {
+    if (total == 0) {
+        printf("\n[INFO] Nenhuma sessao registrada ate o momento.\n");
+        return;
+    }
+
+    printf("\n----------------------------------------------------------------------------------\n");
+    printf("ID  | Modelo             | Energia (kWh) | Tempo (min) | Custo (R$) | Status\n");
+    printf("----------------------------------------------------------------------------------\n");
+    for (int i = 0; i < total; i++) {
+        printf("%-3d | %-18s | %-13.2f | %-11.1f | R$ %-7.2f | %s\n",
+               sessoes[i].id, sessoes[i].modeloVeiculo, sessoes[i].energiaConsumida,
+               sessoes[i].tempoRecarga, sessoes[i].custoTotal, obterStatus(sessoes[i].status));
+    }
+    printf("----------------------------------------------------------------------------------\n");
+}
+
+int buscaLinearPorID(const Sessao sessoes[], int total, int idBusca) {
+    for (int i = 0; i < total; i++) {
+        if (sessoes[i].id == idBusca) {
+            return i;
         }
+    }
+    return -1;
+}
+
+int buscaBinariaPorID(Sessao sessoes[], int total, int idBusca) {
+    insertionSort(sessoes, total, 1);
+
+    int inicio = 0, fim = total - 1;
+    while (inicio <= fim) {
+        int meio = inicio + (fim - inicio) / 2;
+        if (sessoes[meio].id == idBusca) return meio;
+        if (sessoes[meio].id < idBusca) inicio = meio + 1;
+        else fim = meio - 1;
+    }
+    return -1;
+}
+
+void buscarSessao(Sessao sessoes[], int total) {
+    if (total == 0) {
+        printf("\n[INFO] Nenhuma sessao para buscar.\n");
+        return;
+    }
+
+    int id, pos, metodo;
+    printf("\nDigite o ID da sessao procurada: ");
+    while (scanf("%d", &id) != 1) {
+        printf("[ERRO] ID invalido! Digite apenas numeros: ");
+        limparBuffer();
+    }
+
+    printf("Escolha o algoritmo de busca (1- Linear | 2- Binaria): ");
+    while (scanf("%d", &metodo) != 1 || (metodo != 1 && metodo != 2)) {
+        printf("[ERRO] Opcao invalida! Digite 1 para Linear ou 2 para Binaria: ");
+        limparBuffer();
+    }
+
+    if (metodo == 2) pos = buscaBinariaPorID(sessoes, total, id);
+    else pos = buscaLinearPorID(sessoes, total, id);
+
+    if (pos != -1) {
+        printf("\n[ENCONTRADO] Dados da Sessao ID %d:\n", sessoes[pos].id);
+        printf("  Modelo: %s\n", sessoes[pos].modeloVeiculo);
+        printf("  Energia: %.2f kWh\n", sessoes[pos].energiaConsumida);
+        printf("  Tempo: %.1f min\n", sessoes[pos].tempoRecarga);
+        printf("  Custo: R$ %.2f\n", sessoes[pos].custoTotal);
+        printf("  Status: %s\n", obterStatus(sessoes[pos].status));
     } else {
-        for (int i = 0; i < MAX_SESSOES; i++) {
-            if (postos[i].status == CARREGANDO || postos[i].status == AGUARDANDO_GRID) {
-                postos[i].status = CARREGANDO;
-                postos[i].potenciaAtual = postos[i].potenciaSolicitada;
+        printf("\n[ERRO] Sessao com ID %d nao encontrada!\n", id);
+    }
+}
+
+void insertionSort(Sessao sessoes[], int total, int criterio) {
+    for (int i = 1; i < total; i++) {
+        Sessao chave = sessoes[i];
+        int j = i - 1;
+
+        int condicao = 0;
+        while (j >= 0) {
+            switch (criterio) {
+                case 1: condicao = (sessoes[j].id > chave.id); break;
+                case 2: condicao = (sessoes[j].energiaConsumida > chave.energiaConsumida); break;
+                case 3: condicao = (sessoes[j].custoTotal > chave.custoTotal); break;
+                case 4: condicao = (sessoes[j].tempoRecarga > chave.tempoRecarga); break;
             }
-        }
-    }
 
-    for (int i = 0; i < MAX_SESSOES; i++) {
-        if (postos[i].status == CARREGANDO) {
-            postos[i].energiaConsumida += (postos[i].potenciaAtual * 0.5); 
-            aplicarTarifacaoDinamica(&postos[i]);
-            
-            simularComunicacaoModbus(postos[i]);
-
-            if (postos[i].energiaConsumida >= 60.0) {
-                postos[i].status = CONCLUIDO;
-                postos[i].potenciaAtual = 0.0;
-                printf("[NOTIFICACAO] Posto %d: Recarga do %s concluida!\n", postos[i].id, postos[i].modeloVeiculo);
-            }
+            if (!condicao) break;
+            sessoes[j + 1] = sessoes[j];
+            j--;
         }
+        sessoes[j + 1] = chave;
     }
 }
 
-void aplicarTarifacaoDinamica(SessaoCarregamento *s) {
-    float fatorMultiplicador = 1.0;
-
-    if (horaSimulada >= 18 && horaSimulada <= 21) {
-        fatorMultiplicador += 0.40;
+void ordenarSessoes(Sessao sessoes[], int total) {
+    if (total < 2) {
+        printf("\n[INFO] Registro insuficiente de sessoes para ordenacao.\n");
+        return;
     }
 
-    int ativos = 0;
-    for (int i = 0; i < MAX_SESSOES; i++) {
-        if (postos[i].status == CARREGANDO) ativos++;
-    }
-    if (ativos >= 3) {
-        fatorMultiplicador += 0.15;
+    int criterio;
+    printf("\nEscolha o criterio de ordenacao (Insertion Sort):\n");
+    printf("1 - ID\n2 - Energia Consumida\n3 - Custo Total\n4 - Tempo de Recarga\nOpcao: ");
+    while (scanf("%d", &criterio) != 1 || criterio < 1 || criterio > 4) {
+        printf("[ERRO] Opcao invalida! Digite um numero de 1 a 4: ");
+        limparBuffer();
     }
 
-    float tarifaCalculada = TARIFA_BASE * fatorMultiplicador;
-    s->custoAtual = s->energiaConsumida * tarifaCalculada;
+    insertionSort(sessoes, total, criterio);
+    printf("\n[SUCESSO] Sessoes ordenadas com sucesso!\n");
+    listarSessoes(sessoes, total);
 }
 
-void simularComunicacaoModbus(SessaoCarregamento s) {
-    int reg_status = 30005; 
-    int reg_potencia = 30012; 
-    
-    printf("\n  >> [MODBUS TX] Enviando Frame para Servidor Backend (Formato Hex/RTU):\n");
-    printf("     [FRAME]: 01 03 %02X %02X 00 02 CA B3\n", (reg_potencia >> 8) & 0xFF, reg_potencia & 0xFF);
-    printf("  << [MODBUS RX] Posto %d | Reg %d (Status=%d) | Reg %d (Potencia=%.1f kW) | Consumo: %.2f kWh\n", 
-            s.id, reg_status, s.status, reg_potencia, s.potenciaAtual, s.energiaConsumida);
-}
-
-void gerarRelatorio() {
-    printf("\n----------------------------------------------------\n");
-    printf("          RELATORIO DE AUDITORIA E LOGS (FATE/FIAP)   \n");
-    printf("------------------------------------------------------\n");
-    float faturamentoTotal = 0.0;
-    float energiaTotalDispensada = 0.0;
-
-    for (int i = 0; i < MAX_SESSOES; i++) {
-        if (postos[i].status != DISPONIVEL) {
-            printf(" Posto %d | Veiculo: %-15s | Consumo: %5.2f kWh | Total: R$ %6.2f\n",
-                    postos[i].id, postos[i].modeloVeiculo, postos[i].energiaConsumida, postos[i].custoAtual);
-            faturamentoTotal += postos[i].custoAtual;
-            energiaTotalDispensada += postos[i].energiaConsumida;
-        }
+void mostrarEstatisticas(const Sessao sessoes[], int total) {
+    if (total == 0) {
+        printf("\n[INFO] Nenhuma sessao registrada para gerar estatisticas.\n");
+        return;
     }
-    printf("------------------------------------------------------\n");
-    printf(" Energia Total Injetada nos VEs: %.2f kWh\n", energiaTotalDispensada);
-    printf(" Faturamento Estimado da Rodada: R$ %.2f\n", faturamentoTotal);
-    printf("------------------------------------------------------\n");
-    
-    printf("\nPressione Enter para voltar ao menu...");
-    while (getchar() != '\n'); 
-    getchar(); 
+
+    float energiaTotal = 0.0, faturamentoTotal = 0.0;
+    float maiorConsumo = sessoes[0].energiaConsumida;
+    float menorConsumo = sessoes[0].energiaConsumida;
+
+    for (int i = 0; i < total; i++) {
+        energiaTotal += sessoes[i].energiaConsumida;
+        faturamentoTotal += sessoes[i].custoTotal;
+
+        if (sessoes[i].energiaConsumida > maiorConsumo) maiorConsumo = sessoes[i].energiaConsumida;
+        if (sessoes[i].energiaConsumida < menorConsumo) menorConsumo = sessoes[i].energiaConsumida;
+    }
+
+    float ticketMedio = faturamentoTotal / total;
+
+    printf("\n========= ESTATISTICAS DE RECARGA =========\n");
+    printf("Sessoes realizadas: %d\n", total);
+    printf("Energia fornecida : %.2f kWh\n", energiaTotal);
+    printf("Faturamento       : R$ %.2f\n", faturamentoTotal);
+    printf("Ticket medio      : R$ %.2f\n", ticketMedio);
+    printf("Maior consumo     : %.2f kWh\n", maiorConsumo);
+    printf("Menor consumo     : %.2f kWh\n", menorConsumo);
+    printf("===========================================\n");
 }
